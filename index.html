@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Waste Sorter — Image Classifier By ABX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF0E6;
+    --surface: #FFFFFF;
+    --ink: #202A22;
+    --ink-muted: #5B6459;
+    --line: #D7DBC9;
+
+    --c-hazard: #C1441E;
+    --c-hazard-bg: #FBE8DF;
+    --c-nonrecyc: #454B52;
+    --c-nonrecyc-bg: #E7E9EA;
+    --c-organic: #8A5A2B;
+    --c-organic-bg: #F1E4D2;
+    --c-recyc: #2F6F52;
+    --c-recyc-bg: #E1EDE4;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0;
+    padding:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 64px 24px;
+  }
+
+  .wrap{
+    width:100%;
+    max-width: 1080px;
+    display:grid;
+    grid-template-columns: 0.85fr 1fr;
+    gap: 56px;
+  }
+
+  @media (max-width: 860px){
+    .wrap{ grid-template-columns: 1fr; gap: 40px; }
+  }
+
+  /* ---- Left column: intro + legend ---- */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.02em;
+    color: var(--ink-muted);
+    margin: 0 0 14px 0;
+  }
+
+  h1{
+    font-family:'Archivo', sans-serif;
+    font-weight:800;
+    font-size: clamp(34px, 4.4vw, 50px);
+    line-height:1.04;
+    letter-spacing:-0.01em;
+    margin:0 0 18px 0;
+  }
+
+  .lede{
+    font-size:16px;
+    line-height:1.55;
+    color: var(--ink-muted);
+    max-width: 42ch;
+    margin: 0 0 36px 0;
+  }
+
+  .legend{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    border-top: 1px solid var(--line);
+    padding-top: 24px;
+  }
+
+  .legend-item{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .legend-item:last-child{ border-bottom:none; }
+
+  .legend-dot{
+    width:10px; height:10px;
+    border-radius:2px;
+    flex-shrink:0;
+    transform: translateY(1px);
+  }
+
+  .legend-name{
+    font-weight:600;
+    font-size:14.5px;
+  }
+
+  .legend-desc{
+    font-size:13.5px;
+    color: var(--ink-muted);
+  }
+
+  .dot-hazard{ background: var(--c-hazard); }
+  .dot-nonrecyc{ background: var(--c-nonrecyc); }
+  .dot-organic{ background: var(--c-organic); }
+  .dot-recyc{ background: var(--c-recyc); }
+
+  /* ---- Right column: the app ---- */
+  .panel{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 28px;
+  }
+
+  .dropzone{
+    border: 1.5px dashed #B9C0A9;
+    border-radius: 4px;
+    padding: 36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .dropzone.drag{
+    border-color: var(--c-recyc);
+    background: var(--c-recyc-bg);
+  }
+
+  .dropzone input{ display:none; }
+
+  .dz-title{
+    font-weight:600;
+    font-size:15px;
+    margin: 0 0 4px 0;
+  }
+
+  .dz-sub{
+    font-size:13px;
+    color: var(--ink-muted);
+    margin:0;
+  }
+
+  .preview-row{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-top:20px;
+  }
+
+  #previewImg{
+    width:88px; height:88px;
+    object-fit:cover;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    display:none;
+  }
+
+  .file-meta{
+    font-size:13px;
+    color: var(--ink-muted);
+    flex:1;
+    word-break: break-all;
+  }
+
+  button#classifyBtn{
+    width:100%;
+    margin-top:20px;
+    padding: 13px 18px;
+    background: var(--ink);
+    color: #F5F6EE;
+    border:none;
+    border-radius:4px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:14.5px;
+    cursor:pointer;
+    transition: background 0.15s ease;
+  }
+
+  button#classifyBtn:disabled{
+    background: #B4BAA9;
+    cursor: not-allowed;
+  }
+
+  button#classifyBtn:not(:disabled):hover{
+    background: #34412F;
+  }
+
+  .status{
+    margin-top:14px;
+    font-size:13px;
+    color: var(--ink-muted);
+    min-height:18px;
+  }
+
+  .status.error{ color: var(--c-hazard); }
+
+  /* ---- Results ---- */
+  #results{
+    margin-top:26px;
+    padding-top:22px;
+    border-top: 1px solid var(--line);
+    display:none;
+  }
+
+  .result-headline{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom: 18px;
+  }
+
+  .result-label{
+    font-family:'Archivo', sans-serif;
+    font-weight:800;
+    font-size: 22px;
+  }
+
+  .result-confidence{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+
+  .bar-row{
+    margin-bottom: 12px;
+  }
+
+  .bar-row:last-child{ margin-bottom:0; }
+
+  .bar-label-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:12.5px;
+    margin-bottom:5px;
+  }
+
+  .bar-track{
+    height:7px;
+    background: #ECEEE3;
+    border-radius:3px;
+    overflow:hidden;
+  }
+
+  .bar-fill{
+    height:100%;
+    width:0%;
+    border-radius:3px;
+    transition: width 0.6s ease;
+  }
+
+  .fill-hazard{ background: var(--c-hazard); }
+  .fill-nonrecyc{ background: var(--c-nonrecyc); }
+  .fill-organic{ background: var(--c-organic); }
+  .fill-recyc{ background: var(--c-recyc); }
+
+  .footnote{
+    margin-top: 40px;
+    font-size:12px;
+    color: var(--ink-muted);
+    font-family:'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div>
+    <p class="eyebrow">image classification / 4-class CNN</p>
+    <h1>Which bin does this go in?</h1>
+    <p class="lede">Upload a photo of an item and a convolutional network trained on the Waste Segregation dataset sorts it into one of four disposal categories.</p>
+
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-dot dot-hazard"></span>
+        <div>
+          <div class="legend-name">Hazardous</div>
+          <div class="legend-desc">Batteries, chemicals, e-waste — needs special handling</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-nonrecyc"></span>
+        <div>
+          <div class="legend-name">Non-Recyclable</div>
+          <div class="legend-desc">Mixed or soiled materials headed for landfill</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-organic"></span>
+        <div>
+          <div class="legend-name">Organic</div>
+          <div class="legend-desc">Food scraps and plant matter, compostable</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-recyc"></span>
+        <div>
+          <div class="legend-name">Recyclable</div>
+          <div class="legend-desc">Clean paper, glass, metal and plastic</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" />
+      <p class="dz-title">Drop an image here, or click to choose one</p>
+      <p class="dz-sub">JPEG, PNG or WEBP</p>
+    </div>
+
+    <div class="preview-row" id="previewRow" style="display:none;">
+      <img id="previewImg" alt="Selected preview" />
+      <div class="file-meta" id="fileMeta"></div>
+    </div>
+
+    <button id="classifyBtn" disabled>Classify image</button>
+    <p class="status" id="status"></p>
+
+    <div id="results">
+      <div class="result-headline">
+        <span class="result-label" id="resultLabel">—</span>
+        <span class="result-confidence" id="resultConfidence"></span>
+      </div>
+      <div id="barContainer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Point this at your deployed FastAPI backend.
+  // Locally: http://localhost:8000  |  After deploying: https://your-backend.onrender.com
+  const API_URL = "http://localhost:8000";
+
+  const CLASS_STYLE = {
+    "Hazardous":       { fill: "fill-hazard" },
+    "Non-Recyclable":  { fill: "fill-nonrecyc" },
+    "Organic":         { fill: "fill-organic" },
+    "Recyclable":      { fill: "fill-recyc" }
+  };
+
+  const dropzone   = document.getElementById('dropzone');
+  const fileInput  = document.getElementById('fileInput');
+  const previewRow = document.getElementById('previewRow');
+  const previewImg = document.getElementById('previewImg');
+  const fileMeta   = document.getElementById('fileMeta');
+  const classifyBtn= document.getElementById('classifyBtn');
+  const statusEl   = document.getElementById('status');
+  const results    = document.getElementById('results');
+  const resultLabel = document.getElementById('resultLabel');
+  const resultConfidence = document.getElementById('resultConfidence');
+  const barContainer = document.getElementById('barContainer');
+
+  let selectedFile = null;
+
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file){
+    if (!file.type.startsWith('image/')){
+      showStatus('Please choose an image file.', true);
+      return;
+    }
+    selectedFile = file;
+    previewImg.src = URL.createObjectURL(file);
+    previewImg.style.display = 'block';
+    fileMeta.textContent = `${file.name} — ${(file.size/1024).toFixed(0)} KB`;
+    previewRow.style.display = 'flex';
+    classifyBtn.disabled = false;
+    results.style.display = 'none';
+    showStatus('');
+  }
+
+  function showStatus(msg, isError=false){
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (isError ? ' error' : '');
+  }
+
+  classifyBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    classifyBtn.disabled = true;
+    showStatus('Classifying…');
+    results.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await fetch(`${API_URL}/predict`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      renderResults(data);
+      showStatus('');
+    } catch (err) {
+      showStatus(
+        err.message === 'Failed to fetch'
+          ? "Couldn't reach the API. Is the backend running and is API_URL set correctly?"
+          : err.message,
+        true
+      );
+    } finally {
+      classifyBtn.disabled = false;
+    }
+  });
+
+  function renderResults(data){
+    resultLabel.textContent = data.predicted_class;
+    resultConfidence.textContent = `${data.confidence}% confidence`;
+
+    barContainer.innerHTML = '';
+
+    const sorted = Object.entries(data.all_scores).sort((a,b) => b[1]-a[1]);
+
+    for (const [label, score] of sorted){
+      const style = CLASS_STYLE[label] || { fill: 'fill-nonrecyc' };
+
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <div class="bar-label-row">
+          <span>${label}</span>
+          <span>${score}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill ${style.fill}" style="width:0%"></div>
+        </div>
+      `;
+      barContainer.appendChild(row);
+    }
+
+    results.style.display = 'block';
+
+    requestAnimationFrame(() => {
+      const fills = barContainer.querySelectorAll('.bar-fill');
+      const values = sorted.map(s => s[1]);
+      fills.forEach((el, i) => { el.style.width = `${values[i]}%`; });
+    });
+  }
+</script>
+
+</body>
+</html>
